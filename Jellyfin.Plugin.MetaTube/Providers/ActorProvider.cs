@@ -29,7 +29,8 @@ public class ActorProvider : BaseProvider, IRemoteMetadataProvider<Person, Perso
         if (string.IsNullOrWhiteSpace(pid.Id) || string.IsNullOrWhiteSpace(pid.Provider))
         {
             var firstResult = (await GetSearchResults(info, cancellationToken)).FirstOrDefault();
-            if (firstResult != null) pid = firstResult.GetPid(Plugin.ProviderId);
+            if (firstResult == null) return new MetadataResult<Person>();
+            pid = firstResult.GetPid(Plugin.ProviderId);
         }
 
         Logger.Info("Get actor info: {0}", pid.ToString());

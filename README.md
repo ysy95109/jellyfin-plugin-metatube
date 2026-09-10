@@ -41,10 +41,34 @@ MetaTube Plugin for Jellyfin/Emby.
 
 ## Platforms
 
-[![Jellyfin](https://img.shields.io/static/v1?color=%2300A4DC&style=for-the-badge&label=Jellyfin&logo=jellyfin&message=10.11.x)](https://jellyfin.org/)
+[![Jellyfin](https://img.shields.io/static/v1?color=%2300A4DC&style=for-the-badge&label=Jellyfin&logo=jellyfin&message=12.0)](https://jellyfin.org/)
 [![Emby](https://img.shields.io/static/v1?color=%2352B54B&style=for-the-badge&label=Emby&logo=emby&message=4.9.x)](https://emby.media/)
 
 _NOTE: This project will only support stable versions._
+
+New Jellyfin builds target **Jellyfin 12.0 / .NET 10**. Historical Jellyfin 10.11 packages remain in the catalog; new 10.11 builds are not produced. Emby continues to target **4.9.x / .NET 8**.
+
+### Build and validate
+
+Install the .NET 10 SDK and Python 3.12+. CI also installs .NET 8 for the Emby target. Run from the repository root:
+
+```sh
+dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release
+dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release.Emby
+dotnet test tests/MetaTube.Tests/MetaTube.Tests.csproj -c Release
+python -m unittest discover -s scripts/tests -v
+```
+
+Release ZIPs are created in `Jellyfin.Plugin.MetaTube/bin`. Regression tests use an ephemeral local synthetic backend; no real provider credentials are needed. Build success is separate from server runtime validation. See the [release checklist](docs/RELEASING.md).
+
+### Upgrade from Jellyfin 10.11
+
+1. Stop Jellyfin and back up its complete data and configuration directories, including MetaTube's configuration.
+2. Remove the old MetaTube plugin binary before the Jellyfin upgrade; preserve `MetaTube.xml` and its settings.
+3. Upgrade Jellyfin to 12.0, allow database migrations to finish, and perform the required full library scan.
+4. Install the verified Jellyfin 12.0 MetaTube package, restart, and check settings, metadata lookup, images, and scheduled tasks.
+
+Rolling back Jellyfin requires restoring the full pre-upgrade backup; replacing the plugin DLL does not reverse database migrations. Review [Jellyfin's upgrade guidance](https://jellyfin.org/posts/jellyfin-release-12.0/) before upgrading.
 
 ## Documentation
 
