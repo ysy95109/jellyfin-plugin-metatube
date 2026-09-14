@@ -58,7 +58,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 
         Logger.Info("Get movie info: {0}", pid.ToString());
 
-        var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+        var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, pid.Update != true, cancellationToken);
 
         // Preserve original title.
         var originalTitle = m.Title;
