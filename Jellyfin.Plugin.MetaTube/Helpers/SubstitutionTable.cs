@@ -12,7 +12,7 @@ public class SubstitutionTable : Dictionary<string, string>
     {
         var dictionary = new SubstitutionTable();
 
-        var reader = new StringReader(text ?? string.Empty);
+        using var reader = new StringReader(text ?? string.Empty);
         while (reader.ReadLine() is { } line)
         {
             var kvp = line.Split('=', 2).Select(s => s.Trim()).ToList();
@@ -52,13 +52,11 @@ public class SubstitutionTable : Dictionary<string, string>
     {
         var table = this;
 
-        if (table.Any() != true)
-            return source;
-
         var target = new List<string>();
 
         foreach (var item in source ?? Enumerable.Empty<string>())
         {
+            if (string.IsNullOrWhiteSpace(item)) continue;
             if (!table.TryGetValue(item, out var value))
                 target.Add(item);
             else if (!string.IsNullOrWhiteSpace(value))
