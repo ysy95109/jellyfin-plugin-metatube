@@ -1,4 +1,6 @@
 using Jellyfin.Plugin.MetaTube.Extensions;
+using Jellyfin.Plugin.MetaTube.Helpers;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
@@ -7,6 +9,7 @@ using MediaBrowser.Model.Providers;
 #if __EMBY__
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Common.Net;
 
 #else
 using Microsoft.Extensions.Logging;
@@ -16,12 +19,42 @@ namespace Jellyfin.Plugin.MetaTube.Providers;
 
 public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
 {
+    private readonly BadgeImageSources _sources;
 #if __EMBY__
-    public MovieImageProvider(ILogManager logManager) : base(logManager.CreateLogger<MovieImageProvider>())
+    public MovieImageProvider(ILogManager logManager, IApplicationPaths paths) : base(logManager.CreateLogger<MovieImageProvider>())
 #else
-    public MovieImageProvider(ILogger<MovieImageProvider> logger) : base(logger)
+    public MovieImageProvider(ILogger<MovieImageProvider> logger, IApplicationPaths paths) : base(logger)
 #endif
     {
+        _sources = new BadgeImageSources(Path.Combine(paths.DataPath, "metatube", "image-sources-v1.json"));
+    }
+
+#if __EMBY__
+    public override async Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancellationToken)
+#else
+    public override async Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
+#endif
+    {
+        var response = await base.GetImageResponse(url, cancellationToken);
+        try
+        {
+#if __EMBY__
+            if ((int)response.StatusCode is >= 200 and < 300 && response.Content.CanSeek)
+            {
+                var position = response.Content.Position;
+                using var buffer = new MemoryStream();
+                try { await response.Content.CopyToAsync(buffer, cancellationToken); }
+                finally { response.Content.Position = position; }
+                _sources.Record(buffer.ToArray(), url);
+            }
+#else
+            if (response.IsSuccessStatusCode)
+                _sources.Record(await response.Content.ReadAsByteArrayAsync(cancellationToken), url);
+#endif
+            cancellationToken.ThrowIfCancellationRequested();
+            return response;
+        }
+        catch { response.Dispose(); throw; }
     }
 
 #if __EMBY__
@@ -36,13 +69,16 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
             return Enumerable.Empty<RemoteImageInfo>();
 
         var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var subtitle = new SubtitleDetector(message => Logger.Warn(message)).Detect(item.Path);
+        var badge = Configuration.EnableBadges && subtitle == true ? Configuration.BadgeUrl : string.Empty;
         var images = new List<RemoteImageInfo>
         {
             new()
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1)
+                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, pid.Position ?? -1, badge)
             },
             new()
             {
@@ -64,7 +100,7 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, imageUrl, pid.Position ?? -1)
+                Url = ApiClient.GetPrimaryImageApiUrl(m.Provider, m.Id, imageUrl, pid.Position ?? -1, badge: badge)
             });
 
             images.Add(new RemoteImageInfo

@@ -38,9 +38,9 @@ public abstract class BaseProvider
 #endif
 
 #if __EMBY__
-    public Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancellationToken)
+    public virtual Task<HttpResponseInfo> GetImageResponse(string url, CancellationToken cancellationToken)
 #else
-    public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
+    public virtual Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
 #endif
     {
         Logger.Debug("GetImageResponse for url: {0}", url);

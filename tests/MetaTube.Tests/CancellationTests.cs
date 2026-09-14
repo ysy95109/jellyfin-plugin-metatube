@@ -6,6 +6,7 @@ using Jellyfin.Plugin.MetaTube.Helpers;
 using Jellyfin.Plugin.MetaTube.Providers;
 using Jellyfin.Plugin.MetaTube.ScheduledTasks;
 using Jellyfin.Plugin.MetaTube.Translation;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
@@ -165,7 +166,8 @@ public class CancellationTests : TestEnvironment
             .Returns(() => { cancel.Cancel(); return Task.CompletedTask; });
         var progress = new InlineProgress();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            new OrganizeMetadataTask(NullLogger<OrganizeMetadataTask>.Instance, library.Object).ExecuteAsync(progress, cancel.Token));
+            new OrganizeMetadataTask(NullLogger<OrganizeMetadataTask>.Instance, library.Object,
+                Mock.Of<IProviderManager>(), Paths()).ExecuteAsync(progress, cancel.Token));
         Assert.DoesNotContain(100d, progress.Values);
     }
 
@@ -173,6 +175,12 @@ public class CancellationTests : TestEnvironment
     {
         public List<double> Values { get; } = new();
         public void Report(double value) => Values.Add(value);
+    }
+    private IApplicationPaths Paths()
+    {
+        var paths = new Mock<IApplicationPaths>();
+        paths.SetupGet(p => p.DataPath).Returns(Root);
+        return paths.Object;
     }
     private sealed class TestHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
     {
