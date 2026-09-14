@@ -165,6 +165,18 @@ public class SubtitleBadgeTests : TestEnvironment
     }
 
     [Fact]
+    public async Task Matching_thumbnail_bytes_do_not_make_primary_provenance_ambiguous()
+    {
+        var provider = new MovieImageProvider(NullLogger<MovieImageProvider>.Instance,
+            Mock.Of<IApplicationPaths>(p => p.DataPath == Root));
+        var url = ApiClient.GetPrimaryImageApiUrl("Fixture", "m1");
+        using var primary = await provider.GetImageResponse(url, default);
+        using var thumb = await provider.GetImageResponse(ApiClient.GetThumbImageApiUrl("Fixture", "m1"), default);
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await primary.Content.ReadAsByteArrayAsync()));
+        Assert.Equal(url, new BadgeImageSources(Path.Combine(Root, "metatube", "image-sources-v1.json")).Find(hash));
+    }
+
+    [Fact]
     public async Task Cached_download_provenance_preserves_selected_preview_after_restart()
     {
         var movie = Movie("TEST-C");

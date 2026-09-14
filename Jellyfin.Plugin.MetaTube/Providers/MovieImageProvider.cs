@@ -38,8 +38,14 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
         var response = await base.GetImageResponse(url, cancellationToken);
         try
         {
+            // Thumbnails/backdrops can share bytes with posters without making
+            // the selected primary source ambiguous.
+            var primaryRoute = new Uri(ApiClient.GetPrimaryImageApiUrl("_", "_"));
+            var actual = new Uri(url);
+            var primary = actual.Scheme == primaryRoute.Scheme && actual.Authority == primaryRoute.Authority &&
+                          actual.AbsolutePath.StartsWith(primaryRoute.AbsolutePath[..^4] + "/", StringComparison.Ordinal);
 #if __EMBY__
-            if ((int)response.StatusCode is >= 200 and < 300 && response.Content.CanSeek)
+            if (primary && (int)response.StatusCode is >= 200 and < 300 && response.Content.CanSeek)
             {
                 var position = response.Content.Position;
                 using var buffer = new MemoryStream();
@@ -48,7 +54,7 @@ public class MovieImageProvider : BaseProvider, IRemoteImageProvider, IHasOrder
                 _sources.Record(buffer.ToArray(), url);
             }
 #else
-            if (response.IsSuccessStatusCode)
+            if (primary && response.IsSuccessStatusCode)
                 _sources.Record(await response.Content.ReadAsByteArrayAsync(cancellationToken), url);
 #endif
             cancellationToken.ThrowIfCancellationRequested();
