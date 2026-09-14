@@ -67,6 +67,8 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         if (Configuration.EnableRealActorNames)
             await ConvertToRealActorNames(m, cancellationToken);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         // Substitute title.
         if (Configuration.EnableTitleSubstitution)
             m.Title = Configuration.GetTitleSubstitutionTable().Substitute(m.Title);
@@ -82,6 +84,8 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         // Translate movie info.
         if (Configuration.TranslationMode != TranslationMode.Disabled)
             await TranslateMovieInfo(m, info.MetadataLanguage, cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Distinct and clean blank list
         m.Genres = m.Genres?.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToArray() ?? Array.Empty<string>();
@@ -191,9 +195,11 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 #endif
             };
             await SetActorImageUrl(actor, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             result.AddPerson(actor);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return result;
     }
 
@@ -285,6 +291,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
                     result.Provider, result.Id, result.Images.First(), 0.5, true);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception e)
         {
             Logger.Error("Get actor image error: {0} ({1})", actor.Name, e.Message);
@@ -321,6 +328,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 
             Logger.Warn("No matching movie found on AVBASE for {0}", m.Id);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception e)
         {
             Logger.Error("Convert to real actor names error: {0} ({1})", m.Number, e.Message);
@@ -359,6 +367,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
             Logger.Info("Translate movie info language: {0} => {1}", m.Number, language);
             await TranslationHelper.TranslateAsync(m, language, cancellationToken);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception e)
         {
             Logger.Error("Translate error: {0}", e.Message);
