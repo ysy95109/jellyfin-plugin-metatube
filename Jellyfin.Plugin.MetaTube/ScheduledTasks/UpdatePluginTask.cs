@@ -64,13 +64,15 @@ public class UpdatePluginTask : IScheduledTask
 
         try
         {
-            var apiResult = JsonSerializer.Deserialize<ApiResponseInfo>(await _httpClient.Get(new HttpRequestOptions
+            using var apiStream = await _httpClient.Get(new HttpRequestOptions
             {
                 Url = "https://api.github.com/repos/metatube-community/jellyfin-plugin-metatube/releases/latest",
                 CancellationToken = cancellationToken,
                 AcceptHeader = "application/json",
                 EnableDefaultUserAgent = true
-            }).ConfigureAwait(false));
+            }).ConfigureAwait(false);
+            var apiResult = await JsonSerializer.DeserializeAsync<ApiResponseInfo>(apiStream,
+                cancellationToken: cancellationToken);
 
             var currentVersion = ParseVersion(CurrentVersion);
             var remoteVersion = ParseVersion(apiResult?.TagName);
@@ -86,7 +88,7 @@ public class UpdatePluginTask : IScheduledTask
                 if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
                     throw new Exception("Invalid download url");
 
-                var zipStream = await _httpClient.Get(new HttpRequestOptions
+                using var zipStream = await _httpClient.Get(new HttpRequestOptions
                 {
                     Url = url,
                     CancellationToken = cancellationToken,
@@ -94,7 +96,10 @@ public class UpdatePluginTask : IScheduledTask
                     Progress = progress
                 }).ConfigureAwait(false);
 
+                cancellationToken.ThrowIfCancellationRequested();
+                // The ZIP API is synchronous and cannot interrupt or roll back extraction.
                 _zipClient.ExtractAllFromZip(zipStream, _applicationPaths.PluginsPath, true);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 _logger.Info("Plugin update complete");
 
@@ -105,11 +110,13 @@ public class UpdatePluginTask : IScheduledTask
                 _logger.Info("No need to update");
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception e)
         {
             _logger.Error("Update error: {0}", e.Message);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(100);
     }
 

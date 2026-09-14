@@ -135,18 +135,24 @@ public static class ApiClient
     public static async Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
 #endif
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("User-Agent", DefaultUserAgent);
         var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 #if __EMBY__
-        return new HttpResponseInfo
+        try
         {
-            Content = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
-            ContentLength = response.Content.Headers.ContentLength,
-            ContentType = response.Content.Headers.ContentType?.ToString(),
-            StatusCode = response.StatusCode,
-            Headers = response.Content.Headers.ToDictionary(kvp => kvp.Key, kvp => string.Join(", ", kvp.Value))
-        };
+            var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            var ownedStream = new Helpers.ResponseOwnedStream(stream, response);
+            return new HttpResponseInfo(new IDisposable[] { ownedStream })
+            {
+                Content = ownedStream,
+                ContentLength = response.Content.Headers.ContentLength,
+                ContentType = response.Content.Headers.ContentType?.ToString(),
+                StatusCode = response.StatusCode,
+                Headers = response.Content.Headers.ToDictionary(kvp => kvp.Key, kvp => string.Join(", ", kvp.Value))
+            };
+        }
+        catch { response.Dispose(); throw; }
 #else
         return response;
 #endif
@@ -228,7 +234,7 @@ public static class ApiClient
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
 
         // Add General Headers.
         request.Headers.Add("Accept", "application/json");
@@ -239,7 +245,7 @@ public static class ApiClient
             request.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", Plugin.Instance.Configuration.Token);
 
-        var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
         // Nullable forgiving reason:
         // Response is unlikely to be null.
@@ -261,12 +267,15 @@ public static class ApiClient
 
     #region Http
 
-    private static readonly HttpClient HttpClient;
+    private static readonly HttpClient SharedHttpClient;
+    // Serial fixture seam; production always uses the pooled shared client.
+    internal static HttpClient TestHttpClient { get; set; }
+    private static HttpClient HttpClient => TestHttpClient ?? SharedHttpClient;
     private static string DefaultUserAgent => $"{Plugin.ProviderName}/{Plugin.Instance.Version}";
 
     static ApiClient()
     {
-        HttpClient = new HttpClient(new SocketsHttpHandler
+        SharedHttpClient = new HttpClient(new SocketsHttpHandler
         {
             // Connect Timeout.
             ConnectTimeout = TimeSpan.FromSeconds(30),
