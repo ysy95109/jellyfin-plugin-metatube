@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Web;
@@ -25,32 +26,46 @@ public static class ApiClient
         var query = HttpUtility.ParseQueryString(string.Empty);
         foreach (string key in nv) query.Add(key, nv.Get(key));
 
-        // Build URL
-        var uriBuilder = new UriBuilder(Plugin.Instance.Configuration.Server)
+        if (!Uri.TryCreate(Plugin.Instance.Configuration.Server, UriKind.Absolute, out var server) ||
+            (server.Scheme != Uri.UriSchemeHttp && server.Scheme != Uri.UriSchemeHttps) ||
+            !string.IsNullOrEmpty(server.Query) || !string.IsNullOrEmpty(server.Fragment))
+            throw new InvalidOperationException("MetaTube Server must be an absolute HTTP(S) URL without query or fragment.");
+        var uriBuilder = new UriBuilder(server)
         {
-            Path = path,
+            Path = server.AbsolutePath.TrimEnd('/') + "/" + path.TrimStart('/'),
             Query = query.ToString() ?? string.Empty
         };
         return uriBuilder.ToString();
     }
 
+    private static string Route(string path, string provider, string id)
+    {
+        static string Segment(string value)
+        {
+            if (string.IsNullOrEmpty(value) || value is "." or "..")
+                throw new ArgumentException("MetaTube route segments must be nonempty and cannot be dot segments.");
+            return Uri.EscapeDataString(value);
+        }
+        return path.TrimEnd('/') + "/" + Segment(provider) + "/" + Segment(id);
+    }
+
     private static string ComposeImageApiUrl(string path, string provider, string id, string url = default,
         double ratio = -1, double position = -1, bool auto = false, string badge = default)
     {
-        return ComposeUrl(Path.Combine(path, provider, id), new NameValueCollection
+        return ComposeUrl(Route(path, provider, id), new NameValueCollection
         {
             { "url", url },
-            { "ratio", ratio.ToString("R") },
-            { "pos", position.ToString("R") },
+            { "ratio", ratio.ToString("R", CultureInfo.InvariantCulture) },
+            { "pos", position.ToString("R", CultureInfo.InvariantCulture) },
             { "auto", auto.ToString() },
             { "badge", badge },
-            { "quality", Plugin.Instance.Configuration.DefaultImageQuality.ToString() }
+            { "quality", Plugin.Instance.Configuration.DefaultImageQuality.ToString(CultureInfo.InvariantCulture) }
         });
     }
 
     private static string ComposeInfoApiUrl(string path, string provider, string id, bool lazy)
     {
-        return ComposeUrl(Path.Combine(path, provider, id), new NameValueCollection
+        return ComposeUrl(Route(path, provider, id), new NameValueCollection
         {
             { "lazy", lazy.ToString() }
         });

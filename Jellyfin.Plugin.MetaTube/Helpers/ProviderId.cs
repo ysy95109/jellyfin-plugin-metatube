@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 namespace Jellyfin.Plugin.MetaTube.Helpers;
 
 public class ProviderId
@@ -29,7 +32,7 @@ public class ProviderId
         {
             pid.Provider, pid.Id
         };
-        if (pid.Position.HasValue) values.Add(pid.Position.ToString());
+        if (pid.Position.HasValue) values.Add(pid.Position.Value.ToString("R", CultureInfo.InvariantCulture));
         if (pid.Update.HasValue) values.Add((values.Count == 2 ? ":" : string.Empty) + pid.Update);
         return string.Join(':', values);
     }
@@ -59,6 +62,11 @@ public class ProviderId
 
     private static double? ToDouble(string s)
     {
-        return double.TryParse(s, out var result) ? result : null;
+        // Compatibility policy: a single comma between digits is a legacy decimal,
+        // never a thousands separator. All newly stored values use invariant format.
+        if (Regex.IsMatch(s, @"^[+-]?\d+,\d+$", RegexOptions.CultureInvariant))
+            s = s.Replace(',', '.');
+        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var result) &&
+               double.IsFinite(result) ? result : null;
     }
 }
