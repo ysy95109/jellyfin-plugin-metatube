@@ -207,7 +207,7 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
                 actors[index] = actor;
             }
         }
-        await Task.WhenAll(Enumerable.Range(0, Math.Min(ActorLookupCache.Concurrency, actors.Length))
+        await Task.WhenAll(Enumerable.Range(0, Math.Min(ActorLookupCache.Shared.WorkerCount, actors.Length))
             .Select(_ => EnrichActors()));
         cancellationToken.ThrowIfCancellationRequested();
         foreach (var actor in actors) result.AddPerson(actor);

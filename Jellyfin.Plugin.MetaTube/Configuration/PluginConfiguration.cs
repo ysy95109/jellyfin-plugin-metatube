@@ -51,6 +51,48 @@ public class PluginConfiguration : BasePluginConfiguration
         }
     }
 
+#if __EMBY__
+    [DisplayName("Actor cache capacity")]
+    [Description("Set to 0 to disable caching. Changes apply without restarting.")]
+    [MinValue(0)]
+    [MaxValue(10000)]
+#endif
+    public int ActorLookupCacheCapacity
+    {
+        get => _ActorLookupCacheCapacity;
+        set => _ActorLookupCacheCapacity = Math.Clamp(value, 0, 10000);
+    }
+    internal const int DefaultActorLookupCacheCapacity = 256;
+    private int _ActorLookupCacheCapacity = DefaultActorLookupCacheCapacity;
+
+#if __EMBY__
+    [DisplayName("Actor cache lifetime (minutes)")]
+    [Description("Changing capacity or lifetime clears the cache on its next use. Changes apply without restarting.")]
+    [MinValue(1)]
+    [MaxValue(1440)]
+#endif
+    public int ActorLookupCacheTtlMinutes
+    {
+        get => _ActorLookupCacheTtlMinutes;
+        set => _ActorLookupCacheTtlMinutes = Math.Clamp(value, 1, 1440);
+    }
+    internal const int DefaultActorLookupCacheTtlMinutes = 5;
+    private int _ActorLookupCacheTtlMinutes = DefaultActorLookupCacheTtlMinutes;
+
+#if __EMBY__
+    [DisplayName("Concurrent actor lookups")]
+    [Description("Lower limits apply as current requests finish. Changes apply without restarting.")]
+    [MinValue(1)]
+    [MaxValue(32)]
+#endif
+    public int ActorLookupConcurrency
+    {
+        get => _ActorLookupConcurrency;
+        set => _ActorLookupConcurrency = Math.Clamp(value, 1, 32);
+    }
+    internal const int DefaultActorLookupConcurrency = 4;
+    private int _ActorLookupConcurrency = DefaultActorLookupConcurrency;
+
     private string _server = string.Empty;
     private string _token = string.Empty;
     private static long _nextActorLookupGeneration;

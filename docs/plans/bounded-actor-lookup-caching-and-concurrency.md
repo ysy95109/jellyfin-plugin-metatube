@@ -129,3 +129,35 @@ acceptance checks. No production server was reconfigured or plugin installed.
 
 Final build result: Debug, Release, Debug.Emby, and Release.Emby all passed with
 zero warnings and zero errors. `git diff --check` passed. No push was performed.
+
+## Runtime settings revision (2026-09-15)
+
+The user requested runtime controls, superseding the original instruction to keep
+limits internal. Jellyfin's settings form and Emby's generated options now expose:
+
+| Setting | Default | Range |
+| --- | --- | --- |
+| Actor cache capacity | 256 entries | 0–10000; 0 disables caching |
+| Actor cache lifetime | 5 minutes | 1–1440 minutes |
+| Concurrent actor lookups | 4 | 1–32 across movies |
+
+Saving requires no restart. Capacity/lifetime changes clear cached entries on the
+next use. Existing lookups may finish, but cannot populate a cache with changed
+settings; backend changes still discard stale results entirely. A lower concurrency
+limit waits for active requests to drain, without cancelling them or replacing the
+shared limiter. Queued lookups observe increases within the limiter's internal
+250 ms configuration refresh interval. New movies use the newly configured worker
+count; already-running movies retain their bounded worker count. No unlimited
+per-actor task fan-out is introduced. Invalid persisted values are clamped to the
+same bounds shown by both settings forms; older configuration files retain defaults.
+
+Added `ActorRuntimeSettingsTests` for runtime resizing, TTL, disabling caching,
+concurrency changes with active requests, and XML persistence/defaults/bounds.
+`tests/actor-settings-form.cjs` executes the embedded form's numeric save/reload
+path. The public controls replace the original fixed-limit acceptance assumption.
+
+Runtime-settings validation: 30 C# tests passed; the opt-in real-backend test was
+skipped for this settings-only run. The form fixture passed. All four build
+configurations passed with zero warnings/errors. The added in-flight test confirms
+that tuning cache settings preserves the current result without caching it under
+obsolete settings. Whitespace checks passed.

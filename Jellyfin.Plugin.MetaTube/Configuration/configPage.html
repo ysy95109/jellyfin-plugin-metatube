@@ -34,6 +34,22 @@
                         <div class="fieldDescription">Access token for the MetaTube Server, or blank if no token is set by the backend.</div>
                     </div>
 
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="txtActorLookupCacheCapacity">Actor cache capacity:</label>
+                        <input id="txtActorLookupCacheCapacity" is="emby-input" type="number" min="0" max="10000" step="1" required/>
+                        <div class="fieldDescription">Default: 256. Set to 0 to disable caching. Changes apply without restarting.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="txtActorLookupCacheTtlMinutes">Actor cache lifetime (minutes):</label>
+                        <input id="txtActorLookupCacheTtlMinutes" is="emby-input" type="number" min="1" max="1440" step="1" required/>
+                        <div class="fieldDescription">Default: 5. Changing capacity or lifetime clears the cache on its next use. Changes apply without restarting.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="txtActorLookupConcurrency">Concurrent actor lookups:</label>
+                        <input id="txtActorLookupConcurrency" is="emby-input" type="number" min="1" max="32" step="1" required/>
+                        <div class="fieldDescription">Default: 4. Lower limits apply as current requests finish. Changes apply without restarting.</div>
+                    </div>
+
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
                             <input id="chkEnableCollections" is="emby-checkbox" name="chkEnableCollections" type="checkbox"/>
@@ -343,6 +359,9 @@
             ApiClient.getPluginConfiguration(MetaTubePluginConfig.pluginUniqueId).then(function (config) {
                 $('#txtServer', page).val(config.Server).change();
                 $('#txtToken', page).val(config.Token).change();
+                $('#txtActorLookupConcurrency', page).val(config.ActorLookupConcurrency ?? 4).change();
+                $('#txtActorLookupCacheTtlMinutes', page).val(config.ActorLookupCacheTtlMinutes ?? 5).change();
+                $('#txtActorLookupCacheCapacity', page).val(config.ActorLookupCacheCapacity ?? 256).change();
                 page.querySelector('#chkEnableCollections').checked = config.EnableCollections;
                 page.querySelector('#chkEnableDirectors').checked = config.EnableDirectors;
                 page.querySelector('#chkEnableRatings').checked = config.EnableRatings;
@@ -384,6 +403,9 @@
             ApiClient.getPluginConfiguration(MetaTubePluginConfig.pluginUniqueId).then(function (config) {
                 config.Server = $('#txtServer', form).val();
                 config.Token = $('#txtToken', form).val();
+                config.ActorLookupConcurrency = Number($('#txtActorLookupConcurrency', form).val());
+                config.ActorLookupCacheTtlMinutes = Number($('#txtActorLookupCacheTtlMinutes', form).val());
+                config.ActorLookupCacheCapacity = Number($('#txtActorLookupCacheCapacity', form).val());
                 config.EnableCollections = $('#chkEnableCollections', form).prop('checked');
                 config.EnableDirectors = $('#chkEnableDirectors', form).prop('checked');
                 config.EnableRatings = $('#chkEnableRatings', form).prop('checked');
