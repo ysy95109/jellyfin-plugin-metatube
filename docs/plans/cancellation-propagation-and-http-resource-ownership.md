@@ -49,3 +49,30 @@ Controlled tests cover pending actor lookup, real-name lookup, translation HTTP 
 The updater scopes API/download streams and checks cancellation immediately before and after synchronous ZIP extraction. Once extraction starts, the ZIP API cannot interrupt it or roll back written files. Trailer filesystem ownership commits are supplied by the separate trailer branch; integrate that branch before accepting trailer behavior.
 
 All 11 regression cases passed.
+
+## Runtime settings review (2026-09-15)
+
+The user requested a review of hard-coded operational limits across the changes.
+The translation path touched by this plan also had a fixed five-attempt budget
+and engine-specific 100/1000 ms delays. Both now have settings in Jellyfin's form
+and Emby's generated options:
+
+- Translation attempts: default 5, range 1–10, including the initial request.
+  Changes apply to the next translated field.
+- Translation delay (milliseconds): default -1 retains engine defaults, 0 disables
+  the delay, and positive values up to 60000 override the delay. Read before each
+  attempt, so retries observe saved changes. Already-running delays complete using
+  their original value. The serial translation gate still prevents concurrent
+  requests from defeating the selected delay.
+
+These settings apply without restarting and preserve previous behavior when absent
+from old configuration files. Numeric form save/reload, XML round trips, bounds,
+live attempt/delay changes, cancellation, and semaphore release are covered by
+`TranslationSettingsTests` and `tests/translation-settings-form.cjs`.
+
+The semaphore's single slot remains a correctness rule for rate limiting, not a
+user performance control. Cancellation remains excluded from retries regardless
+of the configured attempt count. HTTP ownership and disposal are unaffected.
+
+Validation: 13 C# tests and the form fixture passed. Debug, Release, Debug.Emby,
+and Release.Emby builds passed with zero warnings/errors. Whitespace checks passed.

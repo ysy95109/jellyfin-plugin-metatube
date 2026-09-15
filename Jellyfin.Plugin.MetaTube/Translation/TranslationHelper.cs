@@ -67,13 +67,14 @@ public static class TranslationHelper
         {
             async Task<string> TranslateWithDelay()
             {
-                await Task.Delay(millisecondsDelay, cancellationToken);
+                var delay = Configuration.TranslationDelayMilliseconds;
+                await Task.Delay(delay < 0 ? millisecondsDelay : delay, cancellationToken);
                 return (await ApiClient
                     .TranslateAsync(q, from, to, Configuration.TranslationEngine.ToString(), nv, cancellationToken)
                     .ConfigureAwait(false)).TranslatedText;
             }
 
-            return await RetryAsync(TranslateWithDelay, 5);
+            return await RetryAsync(TranslateWithDelay, Configuration.TranslationMaxAttempts);
         }
         finally
         {
