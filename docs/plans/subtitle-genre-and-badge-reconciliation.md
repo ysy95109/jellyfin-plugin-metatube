@@ -1,5 +1,24 @@
 # Subtitle detection, genre persistence, and badge reconciliation
 
+## Subtitle genre ownership correction (2026-09-15)
+
+The organizer now records the subtitle genre it introduces in
+`<DataPath>/metatube/subtitle-genres-v1.json`. Removing subtitles removes that
+owned value even after substitution, a rule change, or a service restart.
+Unrelated genres are substituted separately; a target already supplied by an
+unrelated genre is not claimed or deleted. Pending before/after metadata values
+allow failed or interrupted saves to be retried before ownership is committed.
+Unreadable subtitle folders still leave genre and badge state untouched.
+
+Existing renamed genres without ownership history are deliberately preserved:
+their names alone cannot distinguish old subtitle output from manually assigned
+or backend genres. They require manual cleanup if already stale. The original
+`中文字幕` marker continues to follow detected subtitle state.
+
+Regression coverage includes subtitle removal across restart, shared target
+collisions, changed/disabled/deleting rules, failed metadata persistence, and
+recovery after a metadata save interrupted before the ownership commit.
+
 Priority: P2. Covers issues 3, 4, 11 and regex/directory-listing reuse.
 
 ## Outcome

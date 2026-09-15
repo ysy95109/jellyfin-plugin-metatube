@@ -25,6 +25,7 @@ public class OrganizeMetadataTask : IScheduledTask
     private readonly ILogger _logger;
     private readonly IProviderManager _providerManager;
     private readonly BadgeOwnership _badges;
+    private readonly SubtitleGenreOwnership _subtitleGenres;
 #if __EMBY__
     private readonly IFileSystem _fileSystem;
 #endif
@@ -37,6 +38,7 @@ public class OrganizeMetadataTask : IScheduledTask
         _libraryManager = libraryManager;
         _providerManager = providerManager;
         _badges = new BadgeOwnership(Path.Combine(paths.DataPath, "metatube", "badges-v1.json"));
+        _subtitleGenres = new SubtitleGenreOwnership(Path.Combine(paths.DataPath, "metatube", "subtitle-genres-v1.json"));
         _fileSystem = fileSystem;
     }
 #else
@@ -47,6 +49,7 @@ public class OrganizeMetadataTask : IScheduledTask
         _libraryManager = libraryManager;
         _providerManager = providerManager;
         _badges = new BadgeOwnership(Path.Combine(paths.DataPath, "metatube", "badges-v1.json"));
+        _subtitleGenres = new SubtitleGenreOwnership(Path.Combine(paths.DataPath, "metatube", "subtitle-genres-v1.json"));
     }
 #endif
 
@@ -103,20 +106,17 @@ public class OrganizeMetadataTask : IScheduledTask
             {
                 var detected = subtitles.Detect(item.Path);
                 if (!detected.HasValue) continue;
-                var original = item.Genres;
-                var genres = (original ?? Array.Empty<string>()).Where(g => !string.IsNullOrWhiteSpace(g)).ToList();
-                if (detected.Value && !genres.Contains(SubtitleDetector.Genre)) genres.Add(SubtitleDetector.Genre);
-                if (!detected.Value) genres.RemoveAll(g => g == SubtitleDetector.Genre);
-                var desired = (Plugin.Instance.Configuration.EnableGenreSubstitution
-                    ? Plugin.Instance.Configuration.GetGenreSubstitutionTable().Substitute(genres)
-                    : genres).Distinct().OrderByString(g => g).ToArray();
-                if (!(original ?? Array.Empty<string>()).SequenceEqual(desired, StringComparer.OrdinalIgnoreCase))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    item.Genres = desired;
-                    try { await Persist(item, cancellationToken); }
-                    catch { item.Genres = original; throw; }
-                }
+                await _subtitleGenres.Reconcile(item.Id.ToString(), detected.Value,
+                    Plugin.Instance.Configuration.EnableGenreSubstitution
+                        ? Plugin.Instance.Configuration.GetGenreSubstitutionTable() : null,
+                    () => item.Genres, async (desired, token) =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var original = item.Genres;
+                        item.Genres = desired;
+                        try { await Persist(item, token); }
+                        catch { item.Genres = original; throw; }
+                    }, genres => genres.Distinct().OrderByString(g => g).ToArray(), cancellationToken);
 
                 cancellationToken.ThrowIfCancellationRequested();
                 var pid = item.GetPid(Plugin.ProviderId);

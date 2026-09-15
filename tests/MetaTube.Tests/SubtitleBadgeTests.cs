@@ -91,6 +91,103 @@ public class SubtitleBadgeTests : TestEnvironment
     }
 
     [Fact]
+    public async Task Removed_subtitles_remove_owned_substituted_genre_after_restart()
+    {
+        var movie = Movie();
+        var subtitle = Path.Combine(Root, "TEST.zh.srt");
+        File.WriteAllText(subtitle, "subtitle");
+        Config.EnableGenreSubstitution = true;
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=Chinese subtitles";
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Equal(new[] { "Chinese subtitles" }, movie.Genres);
+        File.Delete(subtitle);
+        var (task, library) = Organizer(movie);
+        await task.ExecuteAsync(null, default);
+        Assert.Empty(movie.Genres);
+        await task.ExecuteAsync(null, default);
+        library.Verify(l => l.UpdateItemAsync(movie, movie, ItemUpdateType.MetadataEdit, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Chinese subtitles")]
+    [InlineData("Other source")]
+    public async Task Shared_substitution_targets_are_not_owned_or_removed(string original)
+    {
+        var movie = Movie();
+        movie.Genres = new[] { original };
+        var subtitle = Path.Combine(Root, "TEST.zh.srt");
+        File.WriteAllText(subtitle, "subtitle");
+        Config.EnableGenreSubstitution = true;
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=Chinese subtitles\nOther source=Chinese subtitles";
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        File.Delete(subtitle);
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Equal(new[] { "Chinese subtitles" }, movie.Genres);
+    }
+
+    [Fact]
+    public async Task Owned_genre_tracks_changed_disabled_and_deleting_substitution_rules()
+    {
+        var movie = Movie("TEST-C");
+        movie.Genres = new[] { "Drama" };
+        Config.EnableGenreSubstitution = true;
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=first";
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Contains("first", movie.Genres);
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=second";
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.DoesNotContain("first", movie.Genres);
+        Assert.Contains("second", movie.Genres);
+        Config.EnableGenreSubstitution = false;
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.DoesNotContain("second", movie.Genres);
+        Assert.Contains(SubtitleDetector.Genre, movie.Genres);
+        Config.EnableGenreSubstitution = true;
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=";
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Equal(new[] { "Drama" }, movie.Genres);
+    }
+
+    [Fact]
+    public async Task Failed_genre_save_retries_and_retains_ownership_for_later_removal()
+    {
+        var movie = Movie();
+        var subtitle = Path.Combine(Root, "TEST.zh.srt");
+        File.WriteAllText(subtitle, "subtitle");
+        Config.EnableGenreSubstitution = true;
+        Config.GenreRawSubstitutionTable = SubtitleDetector.Genre + "=Chinese subtitles";
+        var (task, library) = Organizer(movie);
+        library.SetupSequence(l => l.UpdateItemAsync(movie, movie, ItemUpdateType.MetadataEdit, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("fixture failure")).Returns(Task.CompletedTask);
+        await task.ExecuteAsync(null, default);
+        Assert.Empty(movie.Genres);
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Equal(new[] { "Chinese subtitles" }, movie.Genres);
+        File.Delete(subtitle);
+        await Organizer(movie).Task.ExecuteAsync(null, default);
+        Assert.Empty(movie.Genres);
+    }
+
+    [Fact]
+    public async Task Saved_pending_genre_is_recovered_before_subtitle_removal()
+    {
+        var movie = Movie();
+        movie.Genres = new[] { "Chinese subtitles" };
+        var path = Path.Combine(Root, "metatube", "subtitle-genres-v1.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var state = new SubtitleGenreOwnership.State();
+        state.Items[movie.Id.ToString()] = new SubtitleGenreOwnership.Record
+        {
+            Before = Array.Empty<string>(), After = movie.Genres, PendingGenre = "Chinese subtitles"
+        };
+        File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(state));
+        var (task, library) = Organizer(movie);
+        await task.ExecuteAsync(null, default);
+        Assert.Empty(movie.Genres);
+        library.Verify(l => l.UpdateItemAsync(movie, movie, ItemUpdateType.MetadataEdit, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task Badges_reconcile_independently_and_survive_service_restart()
     {
         var movie = Movie();
