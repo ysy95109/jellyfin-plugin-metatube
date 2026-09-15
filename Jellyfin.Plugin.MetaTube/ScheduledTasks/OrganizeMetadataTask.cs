@@ -108,6 +108,7 @@ public class OrganizeMetadataTask : IScheduledTask
                     }
                 }
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception e)
             {
                 _logger.Error("Update ChineseSubtitle for video {0}: {1}", item.Name, e.Message);
@@ -125,6 +126,7 @@ public class OrganizeMetadataTask : IScheduledTask
                 (item.Genres?.SequenceEqual(orderedGenres, StringComparer.OrdinalIgnoreCase)).GetValueOrDefault(false))
                 continue;
 
+            cancellationToken.ThrowIfCancellationRequested();
             item.Genres = orderedGenres.ToArray();
 
             _logger.Info("Organize metadata for video: {0}", item.Name);
@@ -138,6 +140,7 @@ public class OrganizeMetadataTask : IScheduledTask
 #endif
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(100);
     }
 
@@ -186,6 +189,7 @@ public class OrganizeMetadataTask : IScheduledTask
             return;
 
         var m = await ApiClient.GetMovieInfoAsync(pid.Provider, pid.Id, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         // Set first primary image.
         item.SetImage(new ItemImageInfo
         {
