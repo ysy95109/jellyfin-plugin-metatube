@@ -29,7 +29,6 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 #endif
 {
     private const string AvBase = "AVBASE";
-    private const string Gfriends = "Gfriends";
     private const string Rating = "JP-18+";
 
     private static readonly string[] AvBaseSupportedProviderNames = { "DUGA", "FANZA", "Getchu", "MGS" };
@@ -185,23 +184,33 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
 #endif
             });
 
-        // Add actors.
-        foreach (var name in m.Actors ?? Enumerable.Empty<string>())
+        // Bounded workers write by index; only the caller mutates the emitted cast.
+        var actors = new PersonInfo[m.Actors.Length];
+        var next = -1;
+        async Task EnrichActors()
         {
-            var actor = new PersonInfo
+            while (true)
             {
-                Name = name,
+                cancellationToken.ThrowIfCancellationRequested();
+                var index = Interlocked.Increment(ref next);
+                if (index >= actors.Length) return;
+                var actor = new PersonInfo
+                {
+                    Name = m.Actors[index],
 #if __EMBY__
-                Type = PersonType.Actor,
+                    Type = PersonType.Actor
 #else
-                Type = PersonKind.Actor,
+                    Type = PersonKind.Actor
 #endif
-            };
-            await SetActorImageUrl(actor, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            result.AddPerson(actor);
+                };
+                await SetActorImageUrl(actor, cancellationToken);
+                actors[index] = actor;
+            }
         }
-
+        await Task.WhenAll(Enumerable.Range(0, Math.Min(ActorLookupCache.Concurrency, actors.Length))
+            .Select(_ => EnrichActors()));
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var actor in actors) result.AddPerson(actor);
         cancellationToken.ThrowIfCancellationRequested();
         return result;
     }
@@ -271,28 +280,17 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
     {
         try
         {
-            var results = await ApiClient.SearchActorAsync(actor.Name, cancellationToken);
-            if (results?.Any() != true)
+            var lookup = await ActorLookupCache.Shared.GetAsync(actor.Name, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (lookup == null)
             {
                 Logger.Warn("Actor not found: {0}", actor.Name);
                 return;
             }
-
-            // Use the first result as the primary actor selection.
-            var firstResult = results.First();
-            if (firstResult.Images?.Any() == true)
-            {
+            if (lookup.Provider != null) actor.SetPid(Name, lookup.Provider, lookup.Id);
+            if (lookup.ImageProvider != null)
                 actor.ImageUrl = ApiClient.GetPrimaryImageApiUrl(
-                    firstResult.Provider, firstResult.Id, firstResult.Images.First(), 0.5, true);
-                actor.SetPid(Name, firstResult.Provider, firstResult.Id);
-            }
-
-            // Use the Gfriends to update the actor profile image, if any.
-            foreach (var result in results.Where(result => result.Provider == Gfriends && result.Images?.Any() == true))
-            {
-                actor.ImageUrl = ApiClient.GetPrimaryImageApiUrl(
-                    result.Provider, result.Id, result.Images.First(), 0.5, true);
-            }
+                    lookup.ImageProvider, lookup.ImageId, lookup.ImageUrl, 0.5, true);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception e)

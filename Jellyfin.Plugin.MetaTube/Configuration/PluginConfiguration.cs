@@ -25,13 +25,37 @@ public class PluginConfiguration : BasePluginConfiguration
     [Description("Full url of the MetaTube Server, HTTPS protocol is recommended.")]
     [Required]
 #endif
-    public string Server { get; set; } = string.Empty;
+    public string Server
+    {
+        get => _server;
+        set
+        {
+            if (_server == value) return;
+            _server = value;
+            Interlocked.Exchange(ref _actorLookupGeneration, Interlocked.Increment(ref _nextActorLookupGeneration));
+        }
+    }
 
 #if __EMBY__
     [DisplayName("Token")]
     [Description("Access token for the MetaTube Server, or blank if no token is set by the backend.")]
 #endif
-    public string Token { get; set; } = string.Empty;
+    public string Token
+    {
+        get => _token;
+        set
+        {
+            if (_token == value) return;
+            _token = value;
+            Interlocked.Exchange(ref _actorLookupGeneration, Interlocked.Increment(ref _nextActorLookupGeneration));
+        }
+    }
+
+    private string _server = string.Empty;
+    private string _token = string.Empty;
+    private static long _nextActorLookupGeneration;
+    private long _actorLookupGeneration = Interlocked.Increment(ref _nextActorLookupGeneration);
+    internal long ActorLookupGeneration => Interlocked.Read(ref _actorLookupGeneration);
 
 #if __EMBY__
     [DisplayName("Enable auto update")]
