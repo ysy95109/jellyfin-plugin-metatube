@@ -55,11 +55,9 @@ Install the .NET 10 SDK and Python 3.12+. CI also installs .NET 8 for the Emby t
 ```sh
 dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release
 dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release.Emby
-dotnet test tests/MetaTube.Tests/MetaTube.Tests.csproj -c Release
-python -m unittest discover -s scripts/tests -v
 ```
 
-Release ZIPs are created in `Jellyfin.Plugin.MetaTube/bin`. Regression tests use an ephemeral local synthetic backend; no real provider credentials are needed. Build success is separate from server runtime validation. See the [release checklist](docs/RELEASING.md).
+Release ZIPs are created in `Jellyfin.Plugin.MetaTube/bin`. Regression tests and development notes are maintained on the matching `codex/dev/<branch-name>` branch. Build success is separate from server runtime validation. See the [release checklist](docs/RELEASING.md).
 
 ### Upgrade from Jellyfin 10.11
 

@@ -2,7 +2,7 @@
 
 ## Build once, promote the tested artifacts
 
-1. Run the `.NET` workflow manually on the default branch. Both Windows and Ubuntu jobs must pass all four builds, C# regressions, Python catalog tests, and ZIP inspection.
+1. Run the `.NET` workflow manually on the default branch. Both Windows and Ubuntu jobs must pass all four builds and ZIP inspection. Run C# regressions and Python catalog tests on the matching `codex/dev/<branch-name>` branch with identical production source before promotion; retain their results with the runtime evidence.
 2. Download `packages-ubuntu-latest`. These portable ZIPs are the release candidates. Do not rebuild them after runtime testing. Record the run ID, commit, version and SHA-256 values from `build-evidence.json`.
 3. Complete every runtime check below using those exact ZIPs. Retain logs/screenshots and the test report outside the public repository if they contain private data. Use synthetic media and credentials for shareable reports.
 4. Run `Promote tested release` from the default branch, supplying the validation run ID, completed runtime confirmation and an evidence URL or report. This manually gated workflow cannot infer runtime success from a build.
@@ -22,7 +22,7 @@ Use isolated data/config/cache directories and disposable writable media copies.
 
 Record OS, server version, runtime version, MetaTube backend version, plugin version and hashes. Synthetic-backend regression tests do not establish compatibility with a deployed backend.
 
-For reproducible manual testing, `tests/runtime/backend.py` serves a loopback-only synthetic backend, candidate ZIP and staging catalog. Supply a small PNG and MP4 fixture:
+From the matching `codex/dev/<branch-name>` checkout, `tests/runtime/backend.py` serves a loopback-only synthetic backend, candidate ZIP and staging catalog. Supply a small PNG and MP4 fixture:
 
 ```sh
 python tests/runtime/backend.py --package Jellyfin.Plugin.MetaTube/bin/Jellyfin.MetaTube@vVERSION.zip --image /absolute/path/image.png --trailer /absolute/path/trailer.mp4

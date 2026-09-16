@@ -40,13 +40,6 @@ jobs:
             dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c $configuration -p:Version=$env:PLUGIN_VERSION
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Regression tests
-        shell: pwsh
-        run: |
-          dotnet test tests/MetaTube.Tests/MetaTube.Tests.csproj -c Release -p:Version=$env:PLUGIN_VERSION --logger trx --results-directory TestResults
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m unittest discover -s scripts/tests -v
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Inspect and record release packages
         shell: pwsh
         run: ./scripts/inspect-packages.ps1 -Version $env:PLUGIN_VERSION -Commit $env:GITHUB_SHA -RunId $env:GITHUB_RUN_ID
@@ -57,8 +50,3 @@ jobs:
             Jellyfin.Plugin.MetaTube/bin/*.zip
             Jellyfin.Plugin.MetaTube/bin/build-evidence.json
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.os }}
-          path: TestResults

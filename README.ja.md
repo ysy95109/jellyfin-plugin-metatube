@@ -55,11 +55,9 @@ _※本プロジェクトは Jellyfin／Emby の安定版のみをサポート�
 ```sh
 dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release
 dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release.Emby
-dotnet test tests/MetaTube.Tests/MetaTube.Tests.csproj -c Release
-python -m unittest discover -s scripts/tests -v
 ```
 
-ZIP は `Jellyfin.Plugin.MetaTube/bin` に生成されます。回帰テストはローカルの模擬バックエンドを使用し、実際の認証情報は不要です。ビルド成功とサーバー上の動作確認は別です。[リリース手順](docs/RELEASING.md)を参照してください。
+ZIP は `Jellyfin.Plugin.MetaTube/bin` に生成されます。回帰テストと開発用資料は、対応する `codex/dev/<branch-name>` ブランチで管理しています。ビルド成功とサーバー上の動作確認は別です。[リリース手順](docs/RELEASING.md)を参照してください。
 
 ### Jellyfin 10.11 からの更新
 
