@@ -71,6 +71,9 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         if (Configuration.EnableTitleSubstitution)
             m.Title = Configuration.GetTitleSubstitutionTable().Substitute(m.Title);
 
+        m.Actors = m.Actors?.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() ?? Array.Empty<string>();
+        m.Genres = m.Genres?.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray() ?? Array.Empty<string>();
+
         // Substitute actors.
         if (Configuration.EnableActorSubstitution)
             m.Actors = Configuration.GetActorSubstitutionTable().Substitute(m.Actors).ToArray();

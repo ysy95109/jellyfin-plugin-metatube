@@ -230,7 +230,7 @@ public class PluginConfiguration : BasePluginConfiguration
         return _titleSubstitutionTable;
     }
 
-    private SubstitutionTable _titleSubstitutionTable;
+    private SubstitutionTable _titleSubstitutionTable = SubstitutionTable.Parse(null);
 
 #if __EMBY__
     [DisplayName("Enable actor substitution")]
@@ -254,7 +254,7 @@ public class PluginConfiguration : BasePluginConfiguration
         return _actorSubstitutionTable;
     }
 
-    private SubstitutionTable _actorSubstitutionTable;
+    private SubstitutionTable _actorSubstitutionTable = SubstitutionTable.Parse(null);
 
 #if __EMBY__
     [DisplayName("Enable genre substitution")]
@@ -278,5 +278,5 @@ public class PluginConfiguration : BasePluginConfiguration
         return _genreSubstitutionTable;
     }
 
-    private SubstitutionTable _genreSubstitutionTable;
+    private SubstitutionTable _genreSubstitutionTable = SubstitutionTable.Parse(null);
 }
