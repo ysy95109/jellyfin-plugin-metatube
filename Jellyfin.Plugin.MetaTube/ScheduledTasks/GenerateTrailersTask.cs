@@ -105,6 +105,7 @@ public class GenerateTrailersTask : IScheduledTask
                 if (File.Exists(Path.Join(trailersFolderPath, ".ignore")))
                     continue;
 
+                cancellationToken.ThrowIfCancellationRequested();
                 var trailerUrl = item.GetTrailerUrl();
 
                 // Skip if no remote trailers.
@@ -150,6 +151,7 @@ public class GenerateTrailersTask : IScheduledTask
                 if (!Directory.Exists(trailersFolderPath))
                     Directory.CreateDirectory(trailersFolderPath);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 // Delete other trailer files, if any.
                 DeleteFiles(trailersFolderPath, TrailerSearchPattern, trailerFilePath);
 
@@ -158,12 +160,14 @@ public class GenerateTrailersTask : IScheduledTask
                 // Write .strm trailer file.
                 await File.WriteAllTextAsync(trailerFilePath, trailerUrl, Utf8WithoutBom, cancellationToken);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception e)
             {
                 _logger.Error("Generate trailer for video {0} error: {1}", item.Name, e.Message);
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         progress?.Report(100);
     }
 

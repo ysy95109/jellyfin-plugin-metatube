@@ -176,6 +176,17 @@
                             </select>
                         </div>
 
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="txtTranslationMaxAttempts">Translation attempts:</label>
+                        <input id="txtTranslationMaxAttempts" is="emby-input" type="number" min="1" max="10" step="1" required/>
+                        <div class="fieldDescription">Default: 5. Maximum attempts per translated field, including the first request. Changes apply without restarting.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel" for="txtTranslationDelayMilliseconds">Translation delay (milliseconds):</label>
+                        <input id="txtTranslationDelayMilliseconds" is="emby-input" type="number" min="-1" max="60000" step="1" required/>
+                        <div class="fieldDescription">Default: -1. Delay before each request. -1 keeps engine defaults; 0 disables the delay. Changes apply without restarting.</div>
+                    </div>
+
                         <div class="selectTranslationEngineBaidu">
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="txtBaiduAppId">Baidu app id:</label>
@@ -343,6 +354,8 @@
             ApiClient.getPluginConfiguration(MetaTubePluginConfig.pluginUniqueId).then(function (config) {
                 $('#txtServer', page).val(config.Server).change();
                 $('#txtToken', page).val(config.Token).change();
+                $('#txtTranslationDelayMilliseconds', page).val(config.TranslationDelayMilliseconds ?? -1).change();
+                $('#txtTranslationMaxAttempts', page).val(config.TranslationMaxAttempts ?? 5).change();
                 page.querySelector('#chkEnableCollections').checked = config.EnableCollections;
                 page.querySelector('#chkEnableDirectors').checked = config.EnableDirectors;
                 page.querySelector('#chkEnableRatings').checked = config.EnableRatings;
@@ -384,6 +397,8 @@
             ApiClient.getPluginConfiguration(MetaTubePluginConfig.pluginUniqueId).then(function (config) {
                 config.Server = $('#txtServer', form).val();
                 config.Token = $('#txtToken', form).val();
+                config.TranslationDelayMilliseconds = Number($('#txtTranslationDelayMilliseconds', form).val());
+                config.TranslationMaxAttempts = Number($('#txtTranslationMaxAttempts', form).val());
                 config.EnableCollections = $('#chkEnableCollections', form).prop('checked');
                 config.EnableDirectors = $('#chkEnableDirectors', form).prop('checked');
                 config.EnableRatings = $('#chkEnableRatings', form).prop('checked');

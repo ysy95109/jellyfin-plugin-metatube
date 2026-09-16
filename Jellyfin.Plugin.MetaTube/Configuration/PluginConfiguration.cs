@@ -278,5 +278,31 @@ public class PluginConfiguration : BasePluginConfiguration
         return _genreSubstitutionTable;
     }
 
+#if __EMBY__
+    [DisplayName("Translation attempts")]
+    [Description("Maximum attempts per translated field, including the first request. Changes apply without restarting.")]
+    [MinValue(1)]
+    [MaxValue(10)]
+#endif
+    public int TranslationMaxAttempts
+    {
+        get => _TranslationMaxAttempts;
+        set => _TranslationMaxAttempts = Math.Clamp(value, 1, 10);
+    }
+    private int _TranslationMaxAttempts = 5;
+
+#if __EMBY__
+    [DisplayName("Translation delay (milliseconds)")]
+    [Description("Delay before each request. -1 keeps engine defaults; 0 disables the delay. Changes apply without restarting.")]
+    [MinValue(-1)]
+    [MaxValue(60000)]
+#endif
+    public int TranslationDelayMilliseconds
+    {
+        get => _TranslationDelayMilliseconds;
+        set => _TranslationDelayMilliseconds = Math.Clamp(value, -1, 60000);
+    }
+    private int _TranslationDelayMilliseconds = -1;
+
     private SubstitutionTable _genreSubstitutionTable;
 }

@@ -67,13 +67,14 @@ public static class TranslationHelper
         {
             async Task<string> TranslateWithDelay()
             {
-                await Task.Delay(millisecondsDelay, cancellationToken);
+                var delay = Configuration.TranslationDelayMilliseconds;
+                await Task.Delay(delay < 0 ? millisecondsDelay : delay, cancellationToken);
                 return (await ApiClient
                     .TranslateAsync(q, from, to, Configuration.TranslationEngine.ToString(), nv, cancellationToken)
                     .ConfigureAwait(false)).TranslatedText;
             }
 
-            return await RetryAsync(TranslateWithDelay, 5);
+            return await RetryAsync(TranslateWithDelay, Configuration.TranslationMaxAttempts);
         }
         finally
         {
@@ -83,6 +84,7 @@ public static class TranslationHelper
 
     public static async Task TranslateAsync(MovieInfo m, string to, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.Equals(to, JapaneseLanguageCode, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException($"language not allowed: {to}");
 
@@ -101,7 +103,7 @@ public static class TranslationHelper
             {
                 return await func();
             }
-            catch when (--retryCount > 0)
+            catch (Exception e) when (e is not OperationCanceledException && --retryCount > 0)
             {
             }
         }
