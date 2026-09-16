@@ -53,7 +53,8 @@ public class MovieProvider : BaseProvider, IRemoteMetadataProvider<Movie, MovieI
         {
             // Search movies and pick the first result.
             var firstResult = (await GetSearchResults(info, cancellationToken)).FirstOrDefault();
-            if (firstResult != null) pid = firstResult.GetPid(Plugin.ProviderId);
+            if (firstResult == null) return new MetadataResult<Movie>();
+            pid = firstResult.GetPid(Plugin.ProviderId);
         }
 
         Logger.Info("Get movie info: {0}", pid.ToString());

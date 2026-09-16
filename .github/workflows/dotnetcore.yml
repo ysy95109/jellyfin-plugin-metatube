@@ -1,61 +1,52 @@
 name: .NET
 
 on:
+  pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - id: version
+        run: echo "value=$(date -u '+%Y.%-m%d.%-H%M.0')" >> "$GITHUB_OUTPUT"
+  build:
+    needs: version
+    env:
+      PLUGIN_VERSION: ${{ needs.version.outputs.version }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          fetch-depth: 0
-
-      - name: Setup .NET Core
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.x'
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+          dotnet-version: |
+            10.0.x
+            8.0.x
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Generate Version
-        id: shell
+      - name: Build all configurations
+        shell: pwsh
         run: |
-          echo "version=$(date -u '+%Y.%-m%d.%-H%M.0')" >> $GITHUB_OUTPUT
-
-      - name: Build Plugins
-        run: |
-          dotnet build --configuration Release -p:Version=${{ steps.shell.outputs.version }}
-          dotnet build --configuration Release.Emby -p:Version=${{ steps.shell.outputs.version }}
-
-      - name: Generate Manifest
-        run: |
-          python3 -m pip install packaging
-          python3 scripts/manifest.py Jellyfin.Plugin.MetaTube/bin/Jellyfin.MetaTube@v${{ steps.shell.outputs.version }}.zip
-
-      - name: Publish Manifest
-        run: |
-          git config --global user.name  'metatube-bot'
-          git config --global user.email 'metatube-bot@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}
-
-          git checkout --orphan dist
-          git rm -rf .
-          git add manifest.json
-          git commit -m "Auto Updated by Actions"
-          git push -f -u origin dist
-
-      - name: Upload Plugins
-        uses: softprops/action-gh-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          foreach ($configuration in @('Debug', 'Release', 'Debug.Emby', 'Release.Emby')) {
+            dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c $configuration -p:Version=$env:PLUGIN_VERSION
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Inspect and record release packages
+        shell: pwsh
+        run: ./scripts/inspect-packages.ps1 -Version $env:PLUGIN_VERSION -Commit $env:GITHUB_SHA -RunId $env:GITHUB_RUN_ID
+      - uses: actions/upload-artifact@v4
         with:
-          body: _Auto Released by Actions_
-          draft: false
-          tag_name: v${{ steps.shell.outputs.version }}
-          files: |
-            Jellyfin.Plugin.MetaTube/bin/Jellyfin.MetaTube@v${{ steps.shell.outputs.version }}.zip
-            Jellyfin.Plugin.MetaTube/bin/Emby.MetaTube@v${{ steps.shell.outputs.version }}.zip
+          name: packages-${{ matrix.os }}
+          path: |
+            Jellyfin.Plugin.MetaTube/bin/*.zip
+            Jellyfin.Plugin.MetaTube/bin/build-evidence.json
+          if-no-files-found: error

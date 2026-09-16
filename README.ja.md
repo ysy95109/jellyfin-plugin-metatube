@@ -41,10 +41,32 @@ Jellyfin／Emby 向けに開発された、とても便利なメタデータプ�
 
 ## 対応プラットフォーム
 
-[![Jellyfin](https://img.shields.io/static/v1?color=%2300A4DC&style=for-the-badge&label=Jellyfin&logo=jellyfin&message=10.11.x)](https://jellyfin.org/)
+[![Jellyfin](https://img.shields.io/static/v1?color=%2300A4DC&style=for-the-badge&label=Jellyfin&logo=jellyfin&message=12.0)](https://jellyfin.org/)
 [![Emby](https://img.shields.io/static/v1?color=%2352B54B&style=for-the-badge&label=Emby&logo=emby&message=4.9.x)](https://emby.media/)
 
 _※本プロジェクトは Jellyfin／Emby の安定版のみをサポートしています。_
+
+新しい Jellyfin ビルドは **Jellyfin 12.0 / .NET 10** を対象とします。Jellyfin 10.11 用の既存パッケージはカタログに残しますが、新規ビルドは作成しません。Emby は引き続き **4.9.x / .NET 8** を対象とします。
+
+### ビルドと検証
+
+.NET 10 SDK と Python 3.12 以降をインストールしてください。CI では Emby 用に .NET 8 もインストールします。リポジトリのルートで実行します。
+
+```sh
+dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release
+dotnet build Jellyfin.Plugin.MetaTube/Jellyfin.Plugin.MetaTube.csproj -c Release.Emby
+```
+
+ZIP は `Jellyfin.Plugin.MetaTube/bin` に生成されます。回帰テストと開発用資料は、対応する `codex/dev/<branch-name>` ブランチで管理しています。ビルド成功とサーバー上の動作確認は別です。[リリース手順](docs/RELEASING.md)を参照してください。
+
+### Jellyfin 10.11 からの更新
+
+1. Jellyfin を停止し、MetaTube の設定を含むデータ・設定ディレクトリ全体をバックアップします。
+2. 古い MetaTube のプラグインバイナリを削除します。`MetaTube.xml` と設定は保持してください。
+3. Jellyfin 12.0 に更新し、データベース移行の完了後、必須のライブラリ全体スキャンを実行します。
+4. 動作確認済みの Jellyfin 12.0 用 MetaTube をインストールして再起動し、設定・メタデータ・画像・定期タスクを確認します。
+
+Jellyfin を元に戻す場合は、更新前の完全なバックアップを復元する必要があります。DLL の差し替えだけではデータベースを元に戻せません。事前に [Jellyfin の更新ガイド](https://jellyfin.org/posts/jellyfin-release-12.0/)を確認してください。
 
 ## ドキュメント
 
